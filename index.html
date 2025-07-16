@@ -293,8 +293,11 @@
         async function fetchGeminiResponse(history, systemInstruction) {
             const payload = { 
                 contents: history,
-                systemInstruction: systemInstruction 
             };
+            if (systemInstruction) {
+                payload.systemInstruction = systemInstruction;
+            }
+            
             // IMPORTANT: Replace "YOUR_API_KEY_HERE" with your actual Gemini API key
             const apiKey = "AIzaSyD5PQXd_zBob2cqwhlcu6eoor5OKCyx7xs"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -358,8 +361,11 @@
              }
              
              try {
-                const searchHistory = [{ role: "user", parts: [{ text: `Provide a comprehensive list of ${searchQuery}` }] }];
-                const searchResultText = await fetchGeminiResponse(searchHistory, searchSystemInstruction);
+                const instructionText = "You are a tire database. When asked for tire brands and models, provide a comprehensive list. Format the output cleanly, for example, using markdown for lists.";
+                const fullQuery = `${instructionText}\n\nProvide a comprehensive list for the following query: ${searchQuery}`;
+                const searchHistory = [{ role: "user", parts: [{ text: fullQuery }] }];
+                
+                const searchResultText = await fetchGeminiResponse(searchHistory, null);
                 let formattedResult = searchResultText
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -405,8 +411,8 @@
 
                     suggestionItem.onclick = () => {
                         searchInput.value = item.text;
-                        handleSearch(item.text);
                         suggestionsContainer.classList.add('hidden');
+                        searchInput.focus();
                     };
                     suggestionsList.appendChild(suggestionItem);
                 });
@@ -457,8 +463,6 @@
         searchButton.addEventListener('click', () => handleSearch());
         searchInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
-                // Check if suggestions are visible, if so, maybe select one?
-                // For now, just trigger search.
                 event.preventDefault();
                 handleSearch();
             }
