@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tire Expert Hub</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles to complement Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+        }
+        /* Animated Gradient Background */
+        .animated-gradient {
+            background: linear-gradient(-45deg, #7f1d1d, #991b1b, #111827, #b91c1c);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* Custom scrollbar for the chat window */
+        #chat-window::-webkit-scrollbar, #search-results::-webkit-scrollbar, #suggestions-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-window::-webkit-scrollbar-track, #search-results::-webkit-scrollbar-track, #suggestions-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        #chat-window::-webkit-scrollbar-thumb, #search-results::-webkit-scrollbar-thumb, #suggestions-list::-webkit-scrollbar-thumb {
+            background-color: #dc2626; /* Red to match theme */
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        #chat-window::-webkit-scrollbar-thumb:hover, #search-results::-webkit-scrollbar-thumb:hover, #suggestions-list::-webkit-scrollbar-thumb:hover {
+            background-color: #ef4444;
+        }
+        /* Typing indicator animation */
+        .typing-indicator span {
+            height: 10px;
+            width: 10px;
+            background-color: #fca5a5;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1.0);
+            }
+        }
+        /* Chat widget positioning */
+        #chat-widget-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 1000; /* Ensure chat is on top */
+        }
+        @media (min-width: 640px) {
+            #chat-widget-container {
+                bottom: 2rem;
+                right: 2rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-200 animated-gradient">
+    
+    <!-- F1 Car Background Image -->
+    <div class="fixed bottom-0 right-0 w-full h-full overflow-hidden z-10 pointer-events-none">
+        <img src="https://images.unsplash.com/photo-1647439328515-f26741846b60?q=80&w=1974&auto=format&fit=crop" 
+             alt="Red Bull F1 Car"
+             class="absolute bottom-0 right-0 w-auto h-2/3 lg:h-5/6 opacity-40"
+             onerror="this.style.display='none'">
+    </div>
+
+
+    <div class="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8 relative z-20">
+        <div class="w-full max-w-4xl mx-auto">
+            
+            <!-- Header Section -->
+            <header class="text-center my-12">
+                <h1 class="text-5xl md:text-6xl font-extrabold text-white" style="text-shadow: 2px 2px 12px rgba(0,0,0,0.7);">Tire Expert Hub</h1>
+                <p class="text-lg text-gray-300 mt-4">Your AI-powered guide to everything tires.</p>
+            </header>
+
+            <!-- Search Bar Section -->
+            <div class="mb-8 px-4 relative">
+                <div class="relative">
+                    <input type="search" id="tire-search" placeholder="Search for tire brands, sizes, types..." class="w-full h-14 sm:h-16 pl-7 pr-16 rounded-full text-lg text-gray-200 bg-white/10 backdrop-blur-md border-2 border-white/20 focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/30 transition-all duration-300 shadow-2xl shadow-black/20">
+                    <button id="tire-search-button" class="absolute top-1/2 right-5 transform -translate-y-1/2 text-gray-400 hover:text-red-400 transition-colors">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </button>
+                </div>
+                 <!-- Predictive Search Suggestions -->
+                <div id="suggestions-container" class="absolute w-full mt-2 px-4 hidden" style="z-index: 50;">
+                    <div id="suggestions-list" class="max-h-60 overflow-y-auto bg-gray-800/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20">
+                        <!-- Suggestions will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Results Section -->
+            <div id="search-results-container" class="mb-10 px-4 hidden">
+                 <div class="bg-white/10 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white/20">
+                    <div class="p-4 border-b border-white/20 bg-black/10 flex justify-between items-center">
+                         <h3 id="search-query-display" class="text-lg sm:text-xl font-semibold text-white flex-grow">Search Results</h3>
+                         <button id="close-search-results" class="text-gray-400 hover:text-white transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                         </button>
+                    </div>
+                    <div id="search-results" class="p-6 h-96 overflow-y-auto text-gray-200">
+                        <!-- Search results will be displayed here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center mt-auto mb-4">
+                <p class="text-sm text-gray-400">&copy; 2024 Tire Expert Hub. All Rights Reserved.</p>
+            </footer>
+
+        </div>
+    </div>
+
+    <!-- Chat Widget -->
+    <div id="chat-widget-container">
+        <!-- Chat Window -->
+        <div id="chat-window-wrapper" class="w-[calc(100vw-2rem)] sm:w-full max-w-md mx-auto transition-all duration-300">
+            <div class="bg-gray-800/50 backdrop-blur-md rounded-2xl shadow-2xl shadow-black/30 overflow-hidden border border-white/20">
+                <div class="p-4 border-b border-white/20 bg-gradient-to-r from-red-600 to-rose-600 text-white flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-center tracking-wide">Discount Tire personal assistant</h2>
+                    <button id="minimize-chat" class="text-white hover:bg-white/20 rounded-full p-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="chat-body">
+                    <div id="chat-window" class="p-6 h-96 overflow-y-auto space-y-5">
+                        <!-- Messages will be appended here -->
+                    </div>
+
+                    <div id="typing-indicator" class="px-6 pb-2 hidden">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full border-2 border-red-300 shadow-sm flex items-center justify-center bg-red-500 text-white font-bold">G</div>
+                            <div class="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-white/20 bg-black/10">
+                        <div class="relative">
+                            <input type="text" id="message-input" placeholder="Ask about tire pressure, rotation..." class="w-full h-14 pl-6 pr-20 rounded-full text-gray-200 bg-white/10 border-2 border-white/20 focus:outline-none focus:ring-4 focus:ring-red-500/50 focus:border-red-400 transition-all duration-300">
+                            <button id="send-button" class="absolute top-1/2 right-3 transform -translate-y-1/2 bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-full p-3 transition-all duration-200 active:scale-90 shadow-lg hover:shadow-xl shadow-red-500/30">
+                                <svg class="w-6 h-6 transform rotate-45 -mr-px -mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Minimized Chat Button -->
+        <button id="maximize-chat" class="hidden bg-gradient-to-br from-red-500 to-rose-600 text-white rounded-full p-4 shadow-lg hover:scale-110 transition-transform">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        // DOM element references
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const searchInput = document.getElementById('tire-search');
+        const searchButton = document.getElementById('tire-search-button');
+        const searchResultsContainer = document.getElementById('search-results-container');
+        const searchResultsDiv = document.getElementById('search-results');
+        const searchQueryDisplay = document.getElementById('search-query-display');
+        const chatWidgetContainer = document.getElementById('chat-widget-container');
+        const chatWindowWrapper = document.getElementById('chat-window-wrapper');
+        const minimizeChatButton = document.getElementById('minimize-chat');
+        const maximizeChatButton = document.getElementById('maximize-chat');
+        const closeSearchResultsButton = document.getElementById('close-search-results');
+        const suggestionsContainer = document.getElementById('suggestions-container');
+        const suggestionsList = document.getElementById('suggestions-list');
+
+        // History of the chat to provide context to the API
+        let chatHistory = [];
+        
+        // System instruction to define the AI's persona for chat
+        const chatSystemInstruction = {
+            parts: [{ text: "You are a friendly and knowledgeable AI assistant specializing in car tires. Your name is Gemini. Provide clear, helpful, and safe advice regarding tires. Start the conversation with a friendly welcome message." }]
+        };
+        
+        // System instruction for the search functionality
+        const searchSystemInstruction = {
+            parts: [{ text: "You are a tire database. When asked for tire brands and models, provide a comprehensive list. Format the output cleanly, for example, using markdown for lists." }]
+        };
+
+        // Predictive search terms data structure
+        const predictiveData = {
+            brands: ['Michelin', 'Goodyear', 'Bridgestone', 'Pirelli', 'Continental', 'BFGoodrich', 'Falken', 'Cooper', 'Toyo', 'Hankook', 'Yokohama', 'Nitto', 'Sumitomo', 'General', 'Kumho', 'Uniroyal', 'Kelly', 'Mastercraft', 'Roadmaster', 'Nexen', 'Vredestein'],
+            topics: ['All-Season tires', 'All-Terrain tires', 'Winter Tires', 'Summer Tires', 'Performance Tires', 'Mud-Terrain Tires', 'Run-Flat Tires', 'Touring Tires', 'Tire Pressure', 'Tire Rotation', 'Wheel Alignment', 'Tread Depth', 'How to read tire size', 'Tire balancing', 'Tire repair', 'TPMS', 'Spare tire'],
+            sizes: ['225/65R17', '205/55R16', '265/70R17', '275/55R20', 'P215/65R17', '195/65R15', '235/60R18'],
+            cars: {
+                'Acura': ['MDX', 'RDX', 'Integra', 'TLX'], 'Alfa Romeo': ['Giulia', 'Stelvio'], 'Audi': ['A3', 'A4', 'A6', 'Q3', 'Q5', 'Q7', 'e-tron'], 'BMW': ['3 Series', '5 Series', 'X1', 'X3', 'X5', 'X7'], 'Buick': ['Encore', 'Envision', 'Enclave'], 'Cadillac': ['XT4', 'XT5', 'XT6', 'Escalade'], 'Chevrolet': ['Silverado', 'Equinox', 'Tahoe', 'Suburban', 'Camaro', 'Corvette', 'Malibu', 'Traverse', 'Blazer', 'Trailblazer'], 'Chrysler': ['Pacifica', '300'], 'Dodge': ['Charger', 'Challenger', 'Durango'], 'Fiat': ['500X'], 'Ford': ['F-150', 'Explorer', 'Escape', 'Mustang', 'Bronco', 'Ranger', 'Maverick', 'Edge', 'Expedition'], 'GMC': ['Sierra', 'Terrain', 'Acadia', 'Yukon'], 'Genesis': ['G70', 'G80', 'GV70', 'GV80'], 'Honda': ['CR-V', 'Civic', 'Accord', 'Pilot', 'Odyssey', 'Ridgeline', 'HR-V', 'Passport'], 'Hyundai': ['Elantra', 'Sonata', 'Tucson', 'Santa Fe', 'Palisade', 'Kona'], 'Infiniti': ['QX50', 'QX60', 'QX80'], 'Jaguar': ['F-PACE', 'E-PACE'], 'Jeep': ['Wrangler', 'Grand Cherokee', 'Cherokee', 'Gladiator', 'Compass', 'Renegade'], 'Kia': ['Forte', 'K5', 'Sorento', 'Telluride', 'Sportage', 'Seltos', 'Carnival'], 'Land Rover': ['Range Rover', 'Defender', 'Discovery'], 'Lexus': ['RX', 'NX', 'ES', 'IS', 'GX', 'UX'], 'Lincoln': ['Navigator', 'Aviator', 'Corsair', 'Nautilus'], 'Maserati': ['Ghibli', 'Levante'], 'Mazda': ['CX-5', 'CX-30', 'CX-50', 'CX-9', 'Mazda3'], 'Mercedes-Benz': ['C-Class', 'E-Class', 'S-Class', 'GLC', 'GLE', 'GLS'], 'Mini': ['Cooper'], 'Mitsubishi': ['Outlander', 'Eclipse Cross'], 'Nissan': ['Rogue', 'Altima', 'Sentra', 'Titan', 'Frontier', 'Pathfinder', 'Murano', 'Kicks'], 'Porsche': ['911', 'Cayenne', 'Macan', 'Panamera'], 'Ram': ['1500', '2500', '3500'], 'Subaru': ['Outback', 'Forester', 'Crosstrek', 'Ascent', 'Impreza', 'Legacy'], 'Tesla': ['Model 3', 'Model Y', 'Model S', 'Model X'], 'Toyota': ['RAV4', 'Camry', 'Corolla', 'Highlander', 'Tacoma', 'Tundra', 'Sienna', '4Runner', 'Venza'], 'Volkswagen': ['Jetta', 'Passat', 'Tiguan', 'Atlas', 'Taos'], 'Volvo': ['XC40', 'XC60', 'XC90']
+            }
+        };
+
+        let fullPredictiveList = [];
+
+        // Function to build the predictive list
+        function buildPredictiveList() {
+            predictiveData.brands.forEach(item => fullPredictiveList.push({ text: item, category: 'Tire Brand' }));
+            predictiveData.topics.forEach(item => fullPredictiveList.push({ text: item, category: 'Topic' }));
+            predictiveData.sizes.forEach(item => fullPredictiveList.push({ text: item, category: 'Tire Size' }));
+            for (const brand in predictiveData.cars) {
+                fullPredictiveList.push({ text: brand, category: 'Car Brand' });
+                predictiveData.cars[brand].forEach(model => {
+                    fullPredictiveList.push({ text: `${brand} ${model}`, category: 'Car Model' });
+                });
+            }
+        }
+
+
+        /**
+         * Appends a message to the chat window.
+         * @param {string} message - The text content of the message.
+         * @param {string} sender - 'user' or 'gemini'.
+         */
+        function appendMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('flex', 'items-end', 'max-w-lg', 'md:max-w-xl');
+
+            if (sender === 'user') {
+                messageElement.classList.add('ml-auto', 'justify-end');
+                messageElement.innerHTML = `
+                    <div class="bg-gradient-to-br from-red-500 to-rose-600 text-white p-4 rounded-2xl rounded-br-none shadow-md">
+                        <p class="text-base">${message}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full ml-3 border-2 border-white shadow-sm flex items-center justify-center bg-gray-400 text-white font-bold">
+                        U
+                    </div>
+                `;
+            } else {
+                messageElement.classList.add('mr-auto');
+                messageElement.innerHTML = `
+                   <div class="w-10 h-10 rounded-full mr-3 border-2 border-red-300 shadow-sm flex items-center justify-center bg-red-500 text-white font-bold">
+                        G
+                    </div>
+                    <div class="bg-gray-700/60 text-gray-200 p-4 rounded-2xl rounded-bl-none shadow-md border border-white/10">
+                        <p class="text-base">${message}</p>
+                    </div>
+                `;
+            }
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        /**
+         * Fetches a response from the Gemini API.
+         * @param {Array} history - The conversation history.
+         * @param {object} systemInstruction - The system instruction for the API call.
+         * @returns {Promise<string>} - The response text from the API.
+         */
+        async function fetchGeminiResponse(history, systemInstruction) {
+            const payload = { 
+                contents: history,
+                systemInstruction: systemInstruction 
+            };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates[0]?.content?.parts?.[0]) {
+                return result.candidates[0].content.parts[0].text;
+            }
+            return "Sorry, I couldn't get a response. Please try again.";
+        }
+
+
+        /**
+         * Handles sending a conversational chat message.
+         */
+        async function handleSendMessage() {
+            const userMessage = messageInput.value.trim();
+            if (!userMessage) return;
+
+            appendMessage(userMessage, 'user');
+            chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
+            messageInput.value = '';
+            typingIndicator.classList.remove('hidden');
+
+            try {
+                const geminiResponse = await fetchGeminiResponse(chatHistory, chatSystemInstruction);
+                chatHistory.push({ role: "model", parts: [{ text: geminiResponse }] });
+                appendMessage(geminiResponse, 'gemini');
+            } catch (error) {
+                console.error("Failed to fetch from Gemini API:", error);
+                appendMessage("I'm having trouble connecting right now. Please check the console for errors and try again later.", 'gemini');
+            } finally {
+                typingIndicator.classList.add('hidden');
+            }
+        }
+        
+        /**
+         * Handles the independent search functionality.
+         */
+        async function handleSearch(query) {
+             const searchQuery = query || searchInput.value.trim();
+             if(!searchQuery) return;
+             
+             suggestionsContainer.classList.add('hidden');
+             searchQueryDisplay.innerHTML = `Results for: <strong class="text-red-300">"${searchQuery}"</strong>`;
+             searchResultsDiv.innerHTML = '<div class="flex justify-center items-center h-full"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+             searchResultsContainer.classList.remove('hidden');
+             
+             if (!chatWindowWrapper.classList.contains('hidden')) {
+                chatWindowWrapper.classList.add('hidden');
+                maximizeChatButton.classList.remove('hidden');
+             }
+             
+             try {
+                const searchHistory = [{ role: "user", parts: [{ text: `Provide a comprehensive list of ${searchQuery}` }] }];
+                const searchResultText = await fetchGeminiResponse(searchHistory, searchSystemInstruction);
+                let formattedResult = searchResultText
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/^- (.*$)/gm, '<li class="mt-2">$1</li>')
+                    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-semibold mt-4 mb-2">$1</h3>')
+                    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>')
+                    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
+                    .replace(/\n/g, '<br>');
+
+                searchResultsDiv.innerHTML = `<div class="prose prose-invert max-w-none">${formattedResult}</div>`;
+             } catch(error) {
+                console.error("Search failed:", error);
+                searchResultsDiv.innerHTML = `<p class="text-red-400">Search failed. Please try again.</p>`;
+             }
+             searchInput.value = '';
+        }
+
+        // --- Predictive Search ---
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            if (query.length === 0) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            const filteredTerms = fullPredictiveList.filter(item => item.text.toLowerCase().includes(query)).slice(0, 7);
+            
+            if (filteredTerms.length > 0) {
+                suggestionsList.innerHTML = '';
+                filteredTerms.forEach(item => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.className = 'p-3 text-gray-300 hover:bg-red-500/30 cursor-pointer rounded-lg flex justify-between items-center';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = item.text;
+                    
+                    const categorySpan = document.createElement('span');
+                    categorySpan.className = 'text-xs text-red-400 ml-2 px-2 py-1 bg-red-500/20 rounded-full';
+                    categorySpan.textContent = item.category;
+
+                    suggestionItem.appendChild(textSpan);
+                    suggestionItem.appendChild(categorySpan);
+
+                    suggestionItem.onclick = () => {
+                        searchInput.value = item.text;
+                        handleSearch(item.text);
+                        suggestionsContainer.classList.add('hidden');
+                    };
+                    suggestionsList.appendChild(suggestionItem);
+                });
+                suggestionsContainer.classList.remove('hidden');
+            } else {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target)) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+
+
+        // --- Chat Widget Toggle ---
+        minimizeChatButton.addEventListener('click', () => {
+            chatWindowWrapper.classList.add('hidden');
+            maximizeChatButton.classList.remove('hidden');
+        });
+
+        maximizeChatButton.addEventListener('click', () => {
+            chatWindowWrapper.classList.remove('hidden');
+            maximizeChatButton.classList.add('hidden');
+        });
+        
+        // --- Close Search Results ---
+        closeSearchResultsButton.addEventListener('click', () => {
+            searchResultsContainer.classList.add('hidden');
+            suggestionsContainer.classList.add('hidden'); // Also hide suggestions
+            if (maximizeChatButton.classList.contains('hidden')) {
+                 chatWindowWrapper.classList.remove('hidden');
+            }
+        });
+
+
+        // Event listeners
+        sendButton.addEventListener('click', handleSendMessage);
+        messageInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleSendMessage();
+            }
+        });
+
+        searchButton.addEventListener('click', () => handleSearch());
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                // Check if suggestions are visible, if so, maybe select one?
+                // For now, just trigger search.
+                event.preventDefault();
+                handleSearch();
+            }
+        });
+
+        // Initial setup
+        window.onload = () => {
+            buildPredictiveList();
+            const welcomeMessage = "Hello! I'm your personal AI tire assistant. How can I help you today? You can ask me about tire pressure, sizes, types, maintenance, and more!";
+            appendMessage(welcomeMessage, 'gemini');
+            chatHistory.push({ role: "model", parts: [{ text: welcomeMessage }] });
+        };
+    </script>
+
+</body>
+</html>
